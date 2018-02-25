@@ -1,27 +1,41 @@
 #!/usr/bin/env python 
+
 from sys import argv
 from apscheduler.schedulers.background import BackgroundScheduler
 from custom_types import get_match, Card
 from bs4 import BeautifulSoup
 import requests
 
+
 def formacion(soup, home_or_away):
-    return soup.find('table', attrs={ 'id': f'formacion{home_or_away}'})
+    """
+    Given a ficha soup, it will return either the formacion table of the home team, or the away one.
+    """
+    return soup.find('table', attrs={ 'id': f'formacion{home_or_away}' })
 
 
 def team_name(formacion):
+    """
+    Given a formacion table, it will find and return the name of the team.
+    """
     return formacion.find('td', attrs={ 'class': 'nomequipo' }).string
 
-def get_changes(url, match_data):
-    document = requests.get(url).content
-    soup = BeautifulSoup(document, 'lxml')
-    
-    new_data = get_match()
 
-    new_data['home_team'].name = team_name(formacion(soup, 1))
-    new_data['away_team'].name = team_name(formacion(soup, 2))
-    print(new_data['home_team'].name)
-    print(new_data['away_team'].name)
+def incidencia(formacion, incidencia_type):
+    """
+    Given a formacion table, and an incidencia, that is a string that can be one of: \
+    ['amarillas', 'cambios', 'rojas', 'goles'], it will return a string contained in a \
+    td of class 'incidencias2'
+    """
+    # If its a 'gol' the previous tr has a td of class .incidencias1, otherwise it has \
+    # the same class as the parameter incidencia.
+    td_class = 'incidencias1' if incidencia_type is 'goles' else incidencia_type
+    prev_sibling_tr = formacion.find('td', attrs={ 'class': td_class }).parent
+    return prev_sibling_tr.next_sibling.find('td', attrs={ 'class': 'incidencias2' })
+
+
+def get_changes(url, match_data):
+    return 0
 
 
 def main():
@@ -41,7 +55,6 @@ def main():
     get_changes(url, match_data)
     return 1
 
+
 if __name__ == '__main__':
     main()
-
-
