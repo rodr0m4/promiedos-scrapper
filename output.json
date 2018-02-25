@@ -1,0 +1,47 @@
+{
+    "match_id": "http://www.promiedos.com.ar/ficha.php?id=cvpncvzpny",
+    "home_team": {
+        "name": "Independiente",
+        "goals": [
+            {
+                "minute": 23,
+                "player": "M. Benitez"
+            }
+        ],
+        "yellow_cards": [
+            {
+                "minute": 62,
+                "player": "L. Fernandez"
+            },
+            {
+                "minute": 80,
+                "player": "J.S. Miño"
+            }
+        ],
+        "red_cards": []
+    },
+    "away_team": {
+        "name": "Banfield",
+        "goals": [],
+        "yellow_cards": [
+            {
+                "minute": 54,
+                "player": "E. Remedi"
+            },
+            {
+                "minute": 86,
+                "player": "D. Ortiz"
+            },
+            {
+                "minute": 90,
+                "player": "N. Bertolo"
+            }
+        ],
+        "red_cards": [
+            {
+                "minute": 84,
+                "player": "E. Remedi"
+            }
+        ]
+    }
+}
