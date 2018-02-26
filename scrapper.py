@@ -1,8 +1,5 @@
 #!/usr/bin/env python 
-from re import compile
 from sys import argv
-from apscheduler.schedulers.background import BackgroundScheduler
-from custom_types import get_match, Card
 from bs4 import BeautifulSoup
 from json import dumps
 import requests
@@ -84,7 +81,7 @@ def parse_sub(string):
 def subs(string):
     subs = []
     for s in string.split(';'):
-        if s is not ' ' or s is not ' ':
+        if s is not ' ':
             sub = parse_sub(s)
             if sub is not None:
                 subs.append(sub)
@@ -138,11 +135,9 @@ def main():
     # be compared with another similar dictionary, which has the information
     # currently in the DOM. When the two instances are different an Event will be
     # launched.
-    match_data = get_match()
+    match_data = dict()
 
     get_changes(match_id, match_data)
-    print
-    # subs('56\' L. Fernandez ⇆ S. Romero; 30\' F. Gaibor ⇆ M. Meza;')
     return 0
 
 

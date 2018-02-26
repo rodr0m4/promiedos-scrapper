@@ -102,6 +102,7 @@ ENV/
 .mypy_cache/
 
 # docker stuff
+run.sh
 build.sh
 Dockerfile
 dependencies/
