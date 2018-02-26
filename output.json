@@ -1,5 +1,5 @@
 {
-    "match_id": "http://www.promiedos.com.ar/ficha.php?id=cvpncvzpny",
+    "match_id": "cvpncvzpny",
     "home_team": {
         "name": "Independiente",
         "goals": [
@@ -18,7 +18,26 @@
                 "player": "J.S. Miño"
             }
         ],
-        "red_cards": []
+        "red_cards": [],
+        "subs": [
+            [
+                {
+                    "minute": 55,
+                    "player_in": "E. Gigliotti",
+                    "player_out": "S. Romero"
+                },
+                {
+                    "minute": 60,
+                    "player_in": "N. Domingo",
+                    "player_out": "F. Gaibor"
+                },
+                {
+                    "minute": 78,
+                    "player_in": "B. Romero",
+                    "player_out": "M. Benitez"
+                }
+            ]
+        ]
     },
     "away_team": {
         "name": "Banfield",
@@ -42,6 +61,20 @@
                 "minute": 84,
                 "player": "E. Remedi"
             }
+        ],
+        "subs": [
+            [
+                {
+                    "minute": 45,
+                    "player_in": "J. Rodriguez",
+                    "player_out": "A. Sporle"
+                },
+                {
+                    "minute": 74,
+                    "player_in": "J. Alvarez",
+                    "player_out": "P. Mouche"
+                }
+            ]
         ]
     }
 }

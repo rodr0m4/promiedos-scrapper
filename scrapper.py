@@ -60,14 +60,44 @@ def parse_minute_and_player(string):
     return minute_and_player
 
 
+def parse_sub(string):
+    """
+    Given a string of like '30\' P. In ⇆ P. Out generates a sub dict
+    """
+    if string.endswith(';'):
+        string = string [:-1]
+    if string.startswith(' '):
+        string = string [1:]
+    if string.endswith(' (Lesion)') or string.endswith(' (Lesión)'):
+        string = string[:-9]
+    players = string.split('⇆')
+    if players[0] is not '':
+        minute_and_player_in = parse_minute_and_player(players[0])
+        sub = dict()
+        sub['minute'] = minute_and_player_in['minute']
+        sub['player_in'] = minute_and_player_in['player'].strip()
+        player_out = players[1]
+        sub['player_out'] = player_out[1:] if player_out.startswith(' ') else player_out
+        return sub
+
+
+def subs(string):
+    subs = []
+    for s in string.split(';'):
+        if s is not ' ' or s is not ' ':
+            sub = parse_sub(s)
+            if sub is not None:
+                subs.append(sub)
+    return subs
+
 
 def parse_incidencia(incidencia):
     if incidencia:
         string = incidencia.string
+        events = []
         if '⇆' in string:
-            return 'kappa'
+            events.append(subs(string))
         else:
-            events = []
             for s in string.split(';'):
                 if s is not ' ' or '':
                     events.append(
@@ -75,21 +105,21 @@ def parse_incidencia(incidencia):
                     )
             # return [s for s in string.split(';') if s is not ' ' and s is not '62\' L. Fernandez']
         return events
-            
         
 
 
-def get_changes(url, match_data):
+def get_changes(id, match_data):
+    url = f'http://www.promiedos.com.ar/ficha.php?id={id}'
     document = requests.get(url).content
     soup = BeautifulSoup(document, 'lxml')
     
     match_data = dict()
-    match_data['match_id'] = url
+    match_data['match_id'] = id
     for x in range(1, 3):
         a_formacion = formacion(soup, x)
         team = dict()
         team['name'] = team_name(a_formacion)
-        for i in ['goles', 'amarillas', 'rojas']:
+        for i in ['goles', 'amarillas', 'rojas', 'cambios']:
             incidencias = parse_incidencia(incidencia(a_formacion, i))
             team[translate(i)] = incidencias if incidencias else []
         match_data[
@@ -103,8 +133,6 @@ def main():
         print('A match id was not specified, exiting...')
         return 1
     match_id = argv[1:][0]
-    
-    url = f'http://www.promiedos.com.ar/ficha.php?id={match_id}'
 
     # Will hold all match data information, when scrapping job is triggered, it'll
     # be compared with another similar dictionary, which has the information
@@ -112,7 +140,9 @@ def main():
     # launched.
     match_data = get_match()
 
-    get_changes(url, match_data)
+    get_changes(match_id, match_data)
+    print
+    # subs('56\' L. Fernandez ⇆ S. Romero; 30\' F. Gaibor ⇆ M. Meza;')
     return 0
 
 
