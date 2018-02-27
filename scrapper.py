@@ -1,8 +1,13 @@
 #!/usr/bin/env python 
+import time
 from sys import argv
 from bs4 import BeautifulSoup
 from json import dumps
+from apscheduler.schedulers.background import BackgroundScheduler
 import requests
+
+
+events = []
 
 
 def translate(string):
@@ -127,75 +132,73 @@ def compare(old, new):
     return flatten(events)
 
 
-def get_changes(id, match_data):
-    url = f'http://www.promiedos.com.ar/ficha.php?id={id}'
-    document = requests.get(url).content
-    soup = BeautifulSoup(document, 'lxml')
-    
-    new_match_data = dict()
-    new_match_data['match_id'] = id
-    for x in [1,2]:
+def match_data(id, soup):
+    match_data = dict()
+    match_data['match_id'] = id
+    for x in [1, 2]:
         a_formacion = formacion(soup, x)
         team = dict()
         team['name'] = team_name(a_formacion)
         for i in ['goles', 'amarillas', 'rojas', 'cambios']:
-            incidencias = parse_incidencia(incidencia(a_formacion, i))
-            team[translate(i)] = incidencias if incidencias else []
-        new_match_data[
+            team[translate(i)] = parse_incidencia(incidencia(a_formacion, i))
+        match_data[
             'home_team' if x is 1 else 'away_team'
         ] = team
-    # return compare(match_data, new_match_data)
+    return match_data
 
+
+def changes(id, url, old_match_data):
+    document = requests.get(url).content
+    soup = BeautifulSoup(document, 'lxml')
+
+    new_match_data = match_data(id, soup)
+
+    comparation = compare(old_match_data, new_match_data)
+
+    if len(comparation) > 0:
+        events.extend(comparation)
+
+    old_match_data = new_match_data
+
+
+def hola():
+    print('hola')
 
 def main():
     if len(argv[1:]) != 1:
         print('A match id was not specified, exiting...')
         return 1
     match_id = argv[1:][0]
-
+    
     # Will hold all match data information, when scrapping job is triggered, it'll
     # be compared with another similar dictionary, which has the information
     # currently in the DOM. When the two instances are different an Event will be
     # launched.
-    match_data = dict()
+    url = f'http://www.promiedos.com.ar/ficha.php?id={match_id}'
+    document = requests.get(url).content
+    soup = BeautifulSoup(document, 'lxml')
 
-    # get_changes(match_id, match_data)
-    print(dumps(
-        compare(
-            {
-                'match': 'ccvnfkpnf',
-                'home_team': {
-                    'goals': [
-                        { 'minute': 3 }
-                    ]
-                },
-                'away_team': {
-                    'goals': [
-                        { 'minute': 3 }
-                    ],
-                    'yellow_cards': []
-                }
-            },
-            {
-                'match': 'ccvnfkpnf',
-                'home_team': {
-                    'goals': [
-                        { 'minute': 3 },
-                        { 'minute': 10 }
-                    ]
-                },
-                'away_team': {
-                    'goals': [
-                        { 'minute': 3 },
-                        { 'minute': 15 }
-                    ],
-                    'yellow_cards': [
-                        { 'minute': 25 }
-                    ]
-                }
-            }
-        )
-    ))
+    old_match_data = match_data(match_id, soup)
+
+    scheduler = BackgroundScheduler()
+    # scheduler.add_job(
+    #     (lambda: changes(match_id, url, old_match_data)),
+    #     'interval',
+    #     seconds=5,
+    # )
+    scheduler.add_job(
+        hola,
+        'interval',
+        seconds=1
+    )
+
+    scheduler.start()
+
+    try:
+        while True:
+           time.sleep(4) 
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
     return 0
 
 
