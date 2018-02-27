@@ -65,10 +65,13 @@ def parse_sub(string):
         string = string [:-1]
     if string.startswith(' '):
         string = string [1:]
+    # TODO: Maybe keep Lesion?
     if string.endswith(' (Lesion)') or string.endswith(' (Lesión)'):
         string = string[:-9]
     players = string.split('⇆')
-    if players[0] is not '':
+    if players[0] is not '' and players[0] is not ' ':
+        # players[0] should be of the form 'minutes\' player' and players[1]
+        # of the form ' player'
         minute_and_player_in = parse_minute_and_player(players[0])
         sub = dict()
         sub['minute'] = minute_and_player_in['minute']
@@ -78,25 +81,23 @@ def parse_sub(string):
         return sub
 
 
-def subs(string):
-    subs = []
-    for s in string.split(';'):
-        if s is not ' ':
-            sub = parse_sub(s)
-            if sub is not None:
-                subs.append(sub)
-    return subs
-
-
 def parse_incidencia(incidencia):
+    """
+    Given a incidencia (a td containing information about goals, subs and cards), parses the string, \
+    returning a list of the events inside of it.
+    """
     if incidencia:
         string = incidencia.string
         events = []
         if '⇆' in string:
-            events.append(subs(string))
+            subs = []
+            for s in string.split(';'):
+                if s is not ' ':
+                    subs.append(parse_sub(s))
+            events.append(subs)
         else:
             for s in string.split(';'):
-                if s is not ' ' or '':
+                if s is not ' ' and s is not '':
                     events.append(
                         parse_minute_and_player(s[1:] if s.startswith(' ') else s)
                     )
@@ -104,25 +105,46 @@ def parse_incidencia(incidencia):
         return events
         
 
+def flatten(a_list):
+    """
+    Takes a list with sublists, returns a flat list:
+    flatten :: [[a]] -> [a]
+    """
+    return [item for sublist in a_list for item in sublist]
+
+
+def compare(old, new):
+    """
+    Goes over two dicts with the same keys, whose values contain lists. Returns a \
+    list of the values present in the new list but not in the old one.
+    """
+    events = []
+    for key, value in old.items():
+        if isinstance(old[key], dict) and isinstance(new[key], dict):
+            events.append(compare(old[key], new[key]))
+        if old[key] != new[key]:
+            events.append([x for x in new[key] if x not in old[key]])
+    return flatten(events)
+
 
 def get_changes(id, match_data):
     url = f'http://www.promiedos.com.ar/ficha.php?id={id}'
     document = requests.get(url).content
     soup = BeautifulSoup(document, 'lxml')
     
-    match_data = dict()
-    match_data['match_id'] = id
-    for x in range(1, 3):
+    new_match_data = dict()
+    new_match_data['match_id'] = id
+    for x in [1,2]:
         a_formacion = formacion(soup, x)
         team = dict()
         team['name'] = team_name(a_formacion)
         for i in ['goles', 'amarillas', 'rojas', 'cambios']:
             incidencias = parse_incidencia(incidencia(a_formacion, i))
             team[translate(i)] = incidencias if incidencias else []
-        match_data[
+        new_match_data[
             'home_team' if x is 1 else 'away_team'
         ] = team
-    print(dumps(match_data))
+    # return compare(match_data, new_match_data)
 
 
 def main():
@@ -137,7 +159,43 @@ def main():
     # launched.
     match_data = dict()
 
-    get_changes(match_id, match_data)
+    # get_changes(match_id, match_data)
+    print(dumps(
+        compare(
+            {
+                'match': 'ccvnfkpnf',
+                'home_team': {
+                    'goals': [
+                        { 'minute': 3 }
+                    ]
+                },
+                'away_team': {
+                    'goals': [
+                        { 'minute': 3 }
+                    ],
+                    'yellow_cards': []
+                }
+            },
+            {
+                'match': 'ccvnfkpnf',
+                'home_team': {
+                    'goals': [
+                        { 'minute': 3 },
+                        { 'minute': 10 }
+                    ]
+                },
+                'away_team': {
+                    'goals': [
+                        { 'minute': 3 },
+                        { 'minute': 15 }
+                    ],
+                    'yellow_cards': [
+                        { 'minute': 25 }
+                    ]
+                }
+            }
+        )
+    ))
     return 0
 
 
