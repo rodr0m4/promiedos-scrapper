@@ -101,8 +101,10 @@ ENV/
 # mypy
 .mypy_cache/
 
-# docker stuff
-run.sh
-build.sh
-Dockerfile
-dependencies/
+# more venv
+bin/
+include/
+lib/
+lib64
+share/
+pyvenv.cfg

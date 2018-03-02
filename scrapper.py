@@ -1,4 +1,5 @@
 #!/usr/bin/env python 
+
 import time
 from sys import argv
 from bs4 import BeautifulSoup
@@ -8,6 +9,7 @@ import requests
 
 
 events = []
+old_match_data = dict()
 
 
 def translate(string):
@@ -44,125 +46,80 @@ def incidencia(formacion, incidencia_type):
     # the same class as the parameter incidencia.
     td_class = 'incidencias1' if incidencia_type is 'goles' else incidencia_type
     prev_sibling_td = formacion.find('td', attrs={ 'class': td_class })
+    
     if prev_sibling_td:
         prev_sibling_tr = prev_sibling_td.parent
-        return prev_sibling_tr.next_sibling.find('td', attrs={ 'class': 'incidencias2' })
-
+        return prev_sibling_tr.next_sibling.find('td', attrs={ 'class': 'incidencias2' }).string
+    else:
+        return ''
 
 def parse_minute_and_player(string):
-    """
-    Given a string like '30\' Some. Player' it deconstructs it into minutes and player
-    """
-    minute_and_player = dict()
-    for subs in string.split('\''):
-        try:
-            minute_and_player['minute'] = int(subs)
-        except ValueError:
-            minute_and_player['player'] = subs[1:]
-    return minute_and_player
-
+    if string.endswith('; '):
+        substrings = string[:-2].strip('\'')
+        # Case promiedos doesn't have the player:
+    if len(substrings) < 2 or substrings[1] is '' or substrings[1] is ' ':
+        return None
+    minutes_and_player = dict()
+    minutes_and_player['minute'] = int(substrings[0])
+    minutes_and_player['player'] = substrings[1].strip()
+    return minutes_and_player
 
 def parse_sub(string):
-    """
-    Given a string of like '30\' P. In ⇆ P. Out generates a sub dict
-    """
-    if string.endswith(';'):
-        string = string [:-1]
-    if string.startswith(' '):
-        string = string [1:]
-    # TODO: Maybe keep Lesion?
-    if string.endswith(' (Lesion)') or string.endswith(' (Lesión)'):
-        string = string[:-9]
-    players = string.split('⇆')
-    if players[0] is not '' and players[0] is not ' ':
-        # players[0] should be of the form 'minutes\' player' and players[1]
-        # of the form ' player'
-        minute_and_player_in = parse_minute_and_player(players[0])
-        sub = dict()
-        sub['minute'] = minute_and_player_in['minute']
-        sub['player_in'] = minute_and_player_in['player'].strip()
-        player_out = players[1]
-        sub['player_out'] = player_out[1:] if player_out.startswith(' ') else player_out
-        return sub
+    if string.endswith('; '):
+        substrings = string[:-2].strip('⇆')
+    else:
+        substrings = string.strip('⇆')
+    minute_and_player_in = parse_minute_and_player(substrings[0].strip())
+    sub = dict()
+    sub['minute'] = minute_and_player_in['minute']
+    sub['player_in'] = minute_and_player_in['player']
+    sub['player_out'] = substrings[1].strip()
+    return sub
 
 
-def parse_incidencia(incidencia):
-    """
-    Given a incidencia (a td containing information about goals, subs and cards), parses the string, \
-    returning a list of the events inside of it.
-    """
-    if incidencia:
-        string = incidencia.string
-        events = []
-        if '⇆' in string:
-            subs = []
-            for s in string.split(';'):
-                if s is not ' ':
-                    subs.append(parse_sub(s))
-            events.append(subs)
-        else:
-            for s in string.split(';'):
-                if s is not ' ' and s is not '':
-                    events.append(
-                        parse_minute_and_player(s[1:] if s.startswith(' ') else s)
-                    )
-            # return [s for s in string.split(';') if s is not ' ' and s is not '62\' L. Fernandez']
-        return events
-        
-
-def flatten(a_list):
-    """
-    Takes a list with sublists, returns a flat list:
-    flatten :: [[a]] -> [a]
-    """
-    return [item for sublist in a_list for item in sublist]
+def prepare_message(team_name, event_type_with_s, string):
+    message = dict()
+    message['event_type'] = event_type_with_s[:-1].upper()
+    message['team'] = team_name
+    if event_type_with_s is not 'subs':
+        parsed = parse_minute_and_player(string)
+    else:
+        parsed = parse_sub(string)
+    for k, v in parsed.items():
+        message[k] = v
+    return dumps(message)
 
 
-def compare(old, new):
-    """
-    Goes over two dicts with the same keys, whose values contain lists. Returns a \
-    list of the values present in the new list but not in the old one.
-    """
-    events = []
-    for key, value in old.items():
-        if isinstance(old[key], dict) and isinstance(new[key], dict):
-            events.append(compare(old[key], new[key]))
-        if old[key] != new[key]:
-            events.append([x for x in new[key] if x not in old[key]])
-    return flatten(events)
-
-
-def match_data(id, soup):
+def match_data_as_string(soup):
     match_data = dict()
-    match_data['match_id'] = id
-    for x in [1, 2]:
-        a_formacion = formacion(soup, x)
-        team = dict()
-        team['name'] = team_name(a_formacion)
+    for x in [1,2]:
+        team = 'home_team' if x is 1 else 'away_team'
+        match_data[team] = dict()
+        the_formacion = formacion(soup, x)
+        match_data[team]['team_name'] = team_name(the_formacion)
         for i in ['goles', 'amarillas', 'rojas', 'cambios']:
-            team[translate(i)] = parse_incidencia(incidencia(a_formacion, i))
-        match_data[
-            'home_team' if x is 1 else 'away_team'
-        ] = team
+            match_data[team][translate(i)] = incidencia(the_formacion, i)
     return match_data
 
 
-def changes(id, url, old_match_data):
+def changes_as_string(old_data, soup):
+    new_data = match_data_as_string(soup)
+    for team in ['home_team', 'away_team']:
+        for k, v in new_data[team].items():
+            if v > old_data[team][k]:
+                print(new_data[team]['team_name'] + k[:-1] + ': ' + v.replace(old_data[team][k], ''))
+    return new_data
+
+match_data = 0
+
+def job(url):
+    global match_data
+
     document = requests.get(url).content
     soup = BeautifulSoup(document, 'lxml')
 
-    new_match_data = match_data(id, soup)
+    match_data = changes_as_string(match_data, soup)
 
-    comparation = compare(old_match_data, new_match_data)
-
-    if len(comparation) > 0:
-        events.extend(comparation)
-
-    old_match_data = new_match_data
-
-
-def hola():
-    print('hola')
 
 def main():
     if len(argv[1:]) != 1:
@@ -178,27 +135,24 @@ def main():
     document = requests.get(url).content
     soup = BeautifulSoup(document, 'lxml')
 
-    old_match_data = match_data(match_id, soup)
+    global match_data
+    match_data = match_data_as_string(soup)
 
     scheduler = BackgroundScheduler()
-    # scheduler.add_job(
-    #     (lambda: changes(match_id, url, old_match_data)),
-    #     'interval',
-    #     seconds=5,
-    # )
     scheduler.add_job(
-        hola,
+        (lambda: job(url)),
         'interval',
-        seconds=1
+        seconds=30,
     )
-
+    
     scheduler.start()
 
     try:
         while True:
-           time.sleep(4) 
+           time.sleep(5) 
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
+
     return 0
 
 
