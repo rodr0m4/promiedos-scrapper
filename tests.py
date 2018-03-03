@@ -1,9 +1,9 @@
 from unittest import TestCase, main
 from unittest.mock import MagicMock
-import scrapper
-import copy
 from bs4 import BeautifulSoup
 from json import dumps
+import scrapper
+import copy
 
 class ScrapperTests(TestCase):
 
@@ -57,10 +57,44 @@ class ScrapperTests(TestCase):
     def test_changes_as_string(self):
         old_data = copy.deepcopy(self.data)
         old_data['home_team']['yellow_cards'] = ""
+        changes_as_string = scrapper.changes_as_string(old_data, self.soup)
         self.assertNotEqual(
             old_data,
-            scrapper.changes_as_string(old_data, self.soup)
+            changes_as_string[0]
         )
+
+    def test_prepare_message_makes_valid_json_with_yellow(self):
+        data = "45' L. Ponzio; "
+        message = scrapper.prepare_message('River Plate', 'yellow_cards', data)
+        self.assertEqual(
+            '{"event_type": "YELLOW_CARD", "team": "River Plate", "minute": 45, "player": "L. Ponzio"}',
+            message
+        )
+
+    def test_prepare_message_makes_valid_json_with_red(self):
+        data = "45' L. Ponzio; "
+        message = scrapper.prepare_message('River Plate', 'red_cards', data)
+        self.assertEqual(
+            '{"event_type": "RED_CARD", "team": "River Plate", "minute": 45, "player": "L. Ponzio"}',
+            message
+        )
+    
+    def test_prepare_message_makes_valid_json_with_goal(self):
+        data = "45' L. Ponzio; "
+        message = scrapper.prepare_message('River Plate', 'goals', data)
+        self.assertEqual(
+            '{"event_type": "GOAL", "team": "River Plate", "minute": 45, "player": "L. Ponzio"}',
+            message
+        )
+
+    def test_prepare_message_makes_valid_json_with_sub(self):
+        data = "45' L. Ponzio ⇆ B. Zuculini; "
+        message = scrapper.prepare_message('River Plate', 'subs', data)
+        self.assertEqual(
+            '{"event_type": "SUB", "team": "River Plate", "minute": 45, "player_in": "L. Ponzio", "player_out": "B. Zuculini"}',
+            message
+        )
+
         
 
 if __name__ == '__main__':

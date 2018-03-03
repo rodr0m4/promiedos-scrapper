@@ -7,7 +7,6 @@ from json import dumps
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
 
-
 events = []
 old_match_data = dict()
 
@@ -25,6 +24,10 @@ def translate(string):
 def formacion(soup, home_or_away):
     """
     Given a ficha soup, it will return either the formacion table of the home team, or the away one.
+
+    Args:
+        soup (BeautifulSoup): Soup of the current match
+        home_or_away (int): Either a 1(home team) or 0(away team)
     """
     return soup.find('table', attrs={ 'id': f'formacion{home_or_away}' })
 
@@ -55,8 +58,9 @@ def incidencia(formacion, incidencia_type):
 
 def parse_minute_and_player(string):
     if string.endswith('; '):
-        substrings = string[:-2].strip('\'')
-        # Case promiedos doesn't have the player:
+        substrings = string[:-2].split("'")
+    else:
+        substrings = string.split("'")
     if len(substrings) < 2 or substrings[1] is '' or substrings[1] is ' ':
         return None
     minutes_and_player = dict()
@@ -66,9 +70,9 @@ def parse_minute_and_player(string):
 
 def parse_sub(string):
     if string.endswith('; '):
-        substrings = string[:-2].strip('⇆')
+        substrings = string[:-2].split('⇆')
     else:
-        substrings = string.strip('⇆')
+        substrings = string.split('⇆')
     minute_and_player_in = parse_minute_and_player(substrings[0].strip())
     sub = dict()
     sub['minute'] = minute_and_player_in['minute']
@@ -104,11 +108,13 @@ def match_data_as_string(soup):
 
 def changes_as_string(old_data, soup):
     new_data = match_data_as_string(soup)
+    events = []
     for team in ['home_team', 'away_team']:
         for k, v in new_data[team].items():
             if v > old_data[team][k]:
-                print(new_data[team]['team_name'] + k[:-1] + ': ' + v.replace(old_data[team][k], ''))
-    return new_data
+                team_name = new_data[team]['team_name']
+                events.append(prepare_message(team_name, k, v))
+    return (new_data, events)
 
 match_data = 0
 
@@ -118,7 +124,11 @@ def job(url):
     document = requests.get(url).content
     soup = BeautifulSoup(document, 'lxml')
 
-    match_data = changes_as_string(match_data, soup)
+    changes = changes_as_string(match_data, soup)
+    match_data = changes[0]
+
+    for event in changes[1]:
+        print(event)
 
 
 def main():
