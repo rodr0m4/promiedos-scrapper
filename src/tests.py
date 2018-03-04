@@ -9,10 +9,10 @@ import copy
 class ScrapperTests(TestCase):
 
     def setUp(self):
-        with open('test-before.html', 'r') as f:
+        with open('html/test-before.html', 'r') as f:
             self.html = f.read()
         self.soup_before = BeautifulSoup(self.html, 'lxml')
-        with open('test-after.html', 'r') as f:
+        with open('html/test-after.html', 'r') as f:
             self.html = f.read()
         self.soup_after = BeautifulSoup(self.html, 'lxml')
         self.maxDiff = None
