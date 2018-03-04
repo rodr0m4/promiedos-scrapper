@@ -113,7 +113,8 @@ def changes_as_string(old_data, soup):
         for k, v in new_data[team].items():
             if v > old_data[team][k]:
                 team_name = new_data[team]['team_name']
-                events.append(prepare_message(team_name, k, v))
+                prefix = old_data[team][k]
+                events.append(prepare_message(team_name, k, v[len(prefix):]))
     return (new_data, events)
 
 match_data = 0
